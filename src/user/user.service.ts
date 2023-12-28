@@ -1,26 +1,85 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  constructor(
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+  ) { }
+
+  async createUser(createUserDto: Partial<CreateUserDto>): Promise<User> {
+    const existingUser = await this.userRepository.findOne({ where: { email: createUserDto.email } });
+    if (existingUser) {
+      throw new ConflictException('E-mail is already in use');
+    }
+
+    const user = this.userRepository.create(createUserDto);
+    return await this.userRepository.save(user);
   }
 
-  findAll() {
-    return `This action returns all user`;
+  async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<User> {
+    const user = await this.findOneId(id)
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (updateUserDto.firstName) {
+      user.firstName = updateUserDto.firstName;
+    }
+
+    if (updateUserDto.lastName) {
+      user.lastName = updateUserDto.lastName;
+    }
+
+    if (updateUserDto.email && updateUserDto.email !== user.email) {
+      const existingUser = await this.userRepository.findOne({ where: { email: updateUserDto.email } });
+      if (existingUser) {
+        throw new ConflictException('E-mail is already in use');
+      }
+      user.email = updateUserDto.email;
+    }
+
+    if (updateUserDto.password) {
+      user.password = await this.hashPassword(updateUserDto.password);
+    }
+
+    if (updateUserDto.phoneNumber) {
+      user.phoneNumber = updateUserDto.phoneNumber;
+    }
+
+    return await this.userRepository.save(user);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findAll(): Promise<User[]> {
+    return await this.userRepository.find();
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async findOneId(id: number): Promise<User> {
+    const user = await this.userRepository.findOneBy({ id });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async removeUser(id: number): Promise<String> {
+    const user = await this.findOneId(id);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    await this.userRepository.delete(id);
+    return 'User successfully deleted';
+  }
+
+  private async hashPassword(password: string): Promise<string> {
+    const saltRounds = 10;
+    const salt = await bcrypt.genSalt(saltRounds);
+    return await bcrypt.hash(password, salt);
   }
 }
