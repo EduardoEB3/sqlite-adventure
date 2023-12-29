@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/main": {
+      "runtime": "vercel-node@2",
+      "maxDuration": 30
+    }
+  }
+}
