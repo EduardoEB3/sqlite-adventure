@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Delete, Put } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Delete, Put, Query } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -41,9 +41,17 @@ export class UserController {
   /**
    * Endpoint to get user information by ID.
    */
-  @Get(':id')
+  @Get('id/:id')
   async getUserById(@Param('id') id: number): Promise<User> {
     return await this.userService.findOneId(id);
+  }
+
+  /**
+   * Endpoint to get user information by email.
+   */
+  @Get('email/:email')
+  async getUserByEmail(@Param('email') email: string): Promise<User> {
+    return await this.userService.findOneEmail(email);
   }
 
   /**
